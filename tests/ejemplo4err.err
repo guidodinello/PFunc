@@ -1,0 +1,7 @@
+Expected: Bool Actual: Int
+Expected: Int Actual: Bool
+Expected: Int Actual: Bool
+Expected: Bool Actual: Int
+The number of arguments in the application of: f doesn't match the signature (3 vs 2)
+Expected: Int Actual: Bool
+Expected: Int Actual: Bool
