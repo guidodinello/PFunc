@@ -19,14 +19,16 @@ import Data.Maybe
 
 -- CHECKER
 
+-- TODO: eliminar los comentarios 'no modificar'
+-- no modificar
 data Checked = Ok | Wrong [Error]
-
+-- no modificar
 data Error = Duplicated      Name
            | Undefined       Name
            | ArgNumDef       Name Int Int
            | ArgNumApp       Name Int Int
            | Expected        Type Type
-            
+-- no modificar            
 instance Show Error where
  show (Duplicated      n)  = "Duplicated declaration: " ++ n
  show (Undefined       n)  = "Undefined: " ++ n
