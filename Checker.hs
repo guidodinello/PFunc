@@ -62,7 +62,9 @@ instance Show Error where
 -- recibe el AST
 -- devuelve Ok o, si hubo errores de sintaxis una lista de Error. ej. [Duplicated, Undefined, etc]
 checkProgram :: Program -> Checked
-checkProgram (Program defs exprs) = if null errs then Ok else Wrong errs
+checkProgram (Program defs exprs) 
+    | null errs =  Ok 
+    | otherwise =  Wrong errs
     where
         -- nombre de funcion o parametro de funcion duplicado
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
