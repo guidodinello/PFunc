@@ -10,6 +10,7 @@
 -- Se incluye también un pretty printing que es
 -- usado para desplegar el código optimizado.
 ----------------------------------------------------------------------------
+{-# LANGUAGE ImportQualifiedPost #-}
 
 module Syntax where
 

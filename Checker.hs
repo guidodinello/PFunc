@@ -6,6 +6,9 @@
 -- que representa un programa, retorna Ok en caso de no encontrar errores,
 -- o la lista de errores encontrados en otro caso.
 ----------------------------------------------------------------------------
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant bracket" #-}
+{-# HLINT ignore "Avoid lambda using `infix`" #-}
 
 module Checker where
 
@@ -62,18 +65,19 @@ instance Show Error where
 -- recibe el AST
 -- devuelve Ok o, si hubo errores de sintaxis una lista de Error. ej. [Duplicated, Undefined, etc]
 checkProgram :: Program -> Checked
-checkProgram (Program defs exprs) 
-    | null errs =  Ok 
+checkProgram (Program defs main)
+    | null errs =  Ok
     | otherwise =  Wrong errs
     where
         -- nombre de funcion o parametro de funcion duplicado
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
 
         -- nombre de funcion o parametro de funcion no definido
-        fnsUsedInMain = getApps exprs
-        undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain exprs
+        fnsUsedInMain = getApps main
+        undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain main
         -- cantparam diferente de cantparam en firma
-        argNumParamsErrList = wrongNumParamsDef ++ wrongNumParamsApp
+
+        argNumParamsErrList = wrongNumParamsDef defs ++ wrongNumParamsApp main defs
         -- tipo de parametro diferente de tipo de parametro en firma
         expectedErrList = expectedErrs
 
@@ -81,7 +85,7 @@ checkProgram (Program defs exprs)
         errs = duplicatesErrList ++ undefinedErrList ++ argNumParamsErrList ++ expectedErrList
 
 -- debugging
--- checkProgram (Program defs exprs) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show exprs) Wrong []
+-- checkProgram (Program defs main) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show main) Wrong []
 
 
 -- Check the uniqueness of function names (Name, _) for TypedFun in FunDef
@@ -123,9 +127,36 @@ getVars (If e1 e2 e3) = getVars e1 ++ getVars e2 ++ getVars e3
 getVars (Let _ e1 e2) = getVars e1 ++ getVars e2
 getVars (App _ es) = concatMap getVars es
 
+-- devuelve la lista de errores de cantidad incorrecta de argumentos en las definiciones
+wrongNumParamsDef :: Defs -> [Error]
+wrongNumParamsDef [] = []
+wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
+    | cantSig /= cantDef = (ArgNumDef name cantSig cantDef):errors
+    | otherwise = errors
+    where errors = wrongNumParamsDef xs
+          cantSig = length sigArg
+          cantDef = length defArg
+
+wrongNumParamsApp :: Expr -> Defs -> [Error]
+wrongNumParamsApp (Infix _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs 
+wrongNumParamsApp (If e1 e2 e3) defs = concatMap (\e -> wrongNumParamsApp e defs) [e1,e2,e3]
+wrongNumParamsApp (Let _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs  
+wrongNumParamsApp (App n args) defs 
+    | cantSig == cantApp = (ArgNumApp n cantSig cantApp):errors
+    | otherwise = errors
+    where   errors = concatMap (\e -> wrongNumParamsApp e defs) args
+            cantSig = getDefArgCount defs n
+            cantApp = length args
+wrongNumParamsApp _ _= []
+
+getDefArgCount :: Defs -> Name -> Int
+getDefArgCount [] _ = 0
+getDefArgCount ((FunDef (name, Sig sigArg _) _ _):xs) n 
+    | n == name = length sigArg
+    | otherwise = getDefArgCount xs n
+
+
 
 getApps = undefined
 undefinedFnsInMain = undefined
-wrongNumParamsDef = undefined
-wrongNumParamsApp = undefined
 expectedErrs = undefined
