@@ -142,7 +142,7 @@ wrongNumParamsApp (Infix _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumPa
 wrongNumParamsApp (If e1 e2 e3) defs = concatMap (\e -> wrongNumParamsApp e defs) [e1,e2,e3]
 wrongNumParamsApp (Let _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs  
 wrongNumParamsApp (App n args) defs 
-    | cantSig == cantApp = (ArgNumApp n cantSig cantApp):errors
+    | cantSig /= cantApp = (ArgNumApp n cantSig cantApp):errors
     | otherwise = errors
     where   errors = concatMap (\e -> wrongNumParamsApp e defs) args
             cantSig = getDefArgCount defs n
