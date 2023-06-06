@@ -10,12 +10,14 @@
 module Generator where
 
 import Syntax
--- se pueden agregar mas importaciones 
+
+-- se pueden agregar mas importaciones
 -- en caso de ser necesario
 
 import Data.List
 
 -- CODE GENERATOR
 
+-- genera el código C correspondiente al AST
 genProgram :: Program -> String
 genProgram = undefined
