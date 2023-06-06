@@ -137,6 +137,7 @@ wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
           cantSig = length sigArg
           cantDef = length defArg
 
+-- devuelve la lista de errores de cantidad incorrecta de argumentos en el main
 wrongNumParamsApp :: Expr -> Defs -> [Error]
 wrongNumParamsApp (Infix _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs 
 wrongNumParamsApp (If e1 e2 e3) defs = concatMap (\e -> wrongNumParamsApp e defs) [e1,e2,e3]
@@ -149,6 +150,7 @@ wrongNumParamsApp (App n args) defs
             cantApp = length args
 wrongNumParamsApp _ _= []
 
+-- devuelve la cantidad de argumentos en la signatura para la funcion con nombre n
 getDefArgCount :: Defs -> Name -> Int
 getDefArgCount [] _ = 0
 getDefArgCount ((FunDef (name, Sig sigArg _) _ _):xs) n 
