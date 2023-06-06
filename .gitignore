@@ -1,3 +1,5 @@
 *.o
 *.hi
 .vscode/*
+Compiler
+Compiler.exe

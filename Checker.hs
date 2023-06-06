@@ -79,7 +79,7 @@ checkProgram (Program defs exprs) = if null errs then Ok else Wrong errs
         errs = duplicatesErrList ++ undefinedErrList ++ argNumParamsErrList ++ expectedErrList
 
 -- debugging
-checkProgram (Program defs exprs) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show exprs) Wrong []
+-- checkProgram (Program defs exprs) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show exprs) Wrong []
 
 
 -- Check the uniqueness of function names (Name, _) for TypedFun in FunDef
@@ -120,3 +120,10 @@ getVars (Infix _ e1 e2) = getVars e1 ++ getVars e2
 getVars (If e1 e2 e3) = getVars e1 ++ getVars e2 ++ getVars e3
 getVars (Let _ e1 e2) = getVars e1 ++ getVars e2
 getVars (App _ es) = concatMap getVars es
+
+
+getApps = undefined
+undefinedFnsInMain = undefined
+wrongNumParamsDef = undefined
+wrongNumParamsApp = undefined
+expectedErrs = undefined
