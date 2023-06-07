@@ -20,6 +20,7 @@ import Syntax
 -- TODO: eliminar import Debug
 import Debug.Trace ( trace )
 import qualified Data.Set as Set
+import Data.List -- operador diferencia \\
 
 
 import Data.List
@@ -73,13 +74,19 @@ checkProgram (Program defs main)
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
 
         -- nombre de funcion o parametro de funcion no definido
-        undefinedFnsInMain = getApps main
-        undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain main
+        definedFns = [name | (FunDef (name, _) _ _) <- defs]
+        -- obtiene las f_i usadas dentro de f_j pero f_i no esta definida
+        usedFns = concat [getApps body | (FunDef _ _ body) <- defs]
+        undefinedFnsInEachFn = map Undefined $ usedFns \\ definedFns
+        -- obtiene las f_i usadas dentro del main pero f_i no esta definida
+        undefinedFnsInMain = map Undefined $ (getApps main) \\ definedFns
+        undefinedErrList = concatMap undefinedVars defs ++ undefinedFnsInEachFn ++ undefinedFnsInMain
 
         -- cantparam diferente de cantparam en firma
         argNumParamsErrList = wrongNumParamsDef defs ++ wrongNumParamsApp main defs
+
         -- tipo de parametro diferente de tipo de parametro en firma
-        expectedErrList = expectedErrs
+        expectedErrList = exprTypeChecker 
 
         -- se puede cambiar el orden en que se muestran los errores de forma facil
         errs = duplicatesErrList ++ undefinedErrList ++ argNumParamsErrList ++ expectedErrList
@@ -104,12 +111,6 @@ repeatedElemsInList :: Eq a => [a] -> [a]
 repeatedElemsInList [] = []
 repeatedElemsInList (x:xs) = if x `elem` xs then x : repeatedElemsInList xs else repeatedElemsInList xs
 
--- devuelve la lista de Errores de funcion usada y no definida
--- importa el orden de definicion? ejemplo, f usa a g y g se define despues. no creo que importe
-undefinedFns :: [FunDef] -> [Error]
--- undefinedFns funDefs = map Undefined undefinedNames
-undefinedFns = undefined
-
 -- devuelve la lista de errores de variable usada dentro de funcion pero no es argumento
 -- capaz hay que cambiarla, que pasa por ejemplo con un let x
 -- f(a,b) = a+b ... let x  , esto devolveria x como undefined
@@ -118,7 +119,7 @@ undefinedVars (FunDef _ argNames expr) = map Undefined undefinedNames
     where
         undefinedNames = [name | name <- getVars expr, name `notElem` argNames]
 
--- devuelve la lista de variables presentes en la Expresion
+-- devuelve la lista de Identificadores de variable presentes en la Expresion
 getVars :: Expr -> [String]
 getVars (Var name) = [name]
 getVars (IntLit _) = []
@@ -158,8 +159,14 @@ getDefArgCount ((FunDef (name, Sig sigArg _) _ _):xs) n
     | n == name = length sigArg
     | otherwise = getDefArgCount xs n
 
+-- devuelve la lista de nombres de las Aplicaciones presentes en la Expresion
+getApps :: Expr -> [Name]
+getApps (Var _) = []
+getApps (IntLit _) = []
+getApps (BoolLit _) = []
+getApps (Infix _ e1 e2) = getApps e1 ++ getApps e2
+getApps (If e1 e2 e3) = getApps e1 ++ getApps e2 ++ getApps e3
+getApps (Let _ e1 e2) = getApps e1 ++ getApps e2
+getApps (App name es) = name : concatMap getApps es
 
-
-getApps = undefined
-undefinedFnsInMain = undefined
-expectedErrs = undefined
+exprTypeChecker = undefined
