@@ -73,10 +73,10 @@ checkProgram (Program defs main)
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
 
         -- nombre de funcion o parametro de funcion no definido
-        fnsUsedInMain = getApps main
+        undefinedFnsInMain = getApps main
         undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain main
-        -- cantparam diferente de cantparam en firma
 
+        -- cantparam diferente de cantparam en firma
         argNumParamsErrList = wrongNumParamsDef defs ++ wrongNumParamsApp main defs
         -- tipo de parametro diferente de tipo de parametro en firma
         expectedErrList = expectedErrs
@@ -105,6 +105,7 @@ repeatedElemsInList [] = []
 repeatedElemsInList (x:xs) = if x `elem` xs then x : repeatedElemsInList xs else repeatedElemsInList xs
 
 -- devuelve la lista de Errores de funcion usada y no definida
+-- importa el orden de definicion? ejemplo, f usa a g y g se define despues. no creo que importe
 undefinedFns :: [FunDef] -> [Error]
 -- undefinedFns funDefs = map Undefined undefinedNames
 undefinedFns = undefined
@@ -131,7 +132,7 @@ getVars (App _ es) = concatMap getVars es
 wrongNumParamsDef :: Defs -> [Error]
 wrongNumParamsDef [] = []
 wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
-    | cantSig /= cantDef = (ArgNumDef name cantSig cantDef):errors
+    | cantSig /= cantDef = (ArgNumDef name cantDef cantSig):errors
     | otherwise = errors
     where errors = wrongNumParamsDef xs
           cantSig = length sigArg
@@ -143,12 +144,12 @@ wrongNumParamsApp (Infix _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumPa
 wrongNumParamsApp (If e1 e2 e3) defs = concatMap (\e -> wrongNumParamsApp e defs) [e1,e2,e3]
 wrongNumParamsApp (Let _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs  
 wrongNumParamsApp (App n args) defs 
-    | cantSig /= cantApp = (ArgNumApp n cantSig cantApp):errors
+    | cantSig /= cantApp = (ArgNumApp n cantApp cantSig):errors
     | otherwise = errors
     where   errors = concatMap (\e -> wrongNumParamsApp e defs) args
             cantSig = getDefArgCount defs n
             cantApp = length args
-wrongNumParamsApp _ _= []
+wrongNumParamsApp _ _ = []
 
 -- devuelve la cantidad de argumentos en la signatura para la funcion con nombre n
 getDefArgCount :: Defs -> Name -> Int
