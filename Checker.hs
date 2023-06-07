@@ -21,6 +21,7 @@ import Syntax
 -- TODO: eliminar import Debug
 import Debug.Trace ( trace )
 import qualified Data.Set as Set
+import Data.List -- operador diferencia \\
 
 
 import Data.List
@@ -73,14 +74,15 @@ checkProgram prg@(Program defs main)
         -- nombre de funcion o parametro de funcion duplicado
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
 
-       -- cantparam diferente de cantparam en firma
+        -- cantparam diferente de cantparam en firma
         argNumParamsErrList
             | null duplicatesErrList = wrongNumParamsDef defs
             | otherwise = []
 
-        -- nombre de funcion o parametro de funcion no definido
-        fnsUsedInMain = getApps main
-        undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain main
+        -- undefined error
+        undefinedErrList 
+            | null duplicatesErrList && null argNumParamsErrList = undefinedErrors prg
+            | otherwise = []
 
         -- tipo de parametro diferente de tipo de parametro en firma
         expectedErrList 
@@ -92,7 +94,6 @@ checkProgram prg@(Program defs main)
 
 -- debugging
 -- checkProgram (Program defs main) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show main) Wrong []
-
 
 -- Check the uniqueness of function names (Name, _) for TypedFun in FunDef
 notUniqueFns :: [FunDef] -> [Error]
@@ -110,10 +111,16 @@ repeatedElemsInList :: Eq a => [a] -> [a]
 repeatedElemsInList [] = []
 repeatedElemsInList (x:xs) = if x `elem` xs then x : repeatedElemsInList xs else repeatedElemsInList xs
 
--- devuelve la lista de Errores de funcion usada y no definida
-undefinedFns :: [FunDef] -> [Error]
--- undefinedFns funDefs = map Undefined undefinedNames
-undefinedFns = undefined
+-- devuelve la lista de errores de tipo no declarado
+undefinedErrors :: Program -> [Error]
+undefinedErrors (Program defs main) = concatMap undefinedVars defs ++ undefinedFnsInEachFn ++ undefinedFnsInMain
+    where   -- nombre de funcion o parametro de funcion no definido
+            definedFns = [name | (FunDef (name, _) _ _) <- defs]
+            -- obtiene las f_i usadas dentro de f_j pero f_i no esta definida
+            usedFns = concat [getApps body | (FunDef _ _ body) <- defs]
+            undefinedFnsInEachFn = map Undefined $ usedFns \\ definedFns
+            -- obtiene las f_i usadas dentro del main pero f_i no esta definida
+            undefinedFnsInMain = map Undefined $ (getApps main) \\ definedFns
 
 -- devuelve la lista de errores de variable usada dentro de funcion pero no es argumento
 -- capaz hay que cambiarla, que pasa por ejemplo con un let x
@@ -123,7 +130,7 @@ undefinedVars (FunDef _ argNames expr) = map Undefined undefinedNames
     where
         undefinedNames = [name | name <- getVars expr, name `notElem` argNames]
 
--- devuelve la lista de variables presentes en la Expresion
+-- devuelve la lista de Identificadores de variable presentes en la Expresion
 getVars :: Expr -> [String]
 getVars (Var name) = [name]
 getVars (IntLit _) = []
@@ -137,7 +144,7 @@ getVars (App _ es) = concatMap getVars es
 wrongNumParamsDef :: Defs -> [Error]
 wrongNumParamsDef [] = []
 wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
-    | cantSig /= cantDef = (ArgNumDef name cantSig cantDef):errors
+    | cantSig /= cantDef = (ArgNumDef name cantDef cantSig):errors
     | otherwise = errors
     where errors = wrongNumParamsDef xs
           cantSig = length sigArg
@@ -230,7 +237,7 @@ getFnSig ((FunDef (name, sig) _ _):xs) n
     | n == name = sig
     | otherwise = getFnSig xs n
 
-
+-- retorn true si el operador es aritmetico
 isArithmeticOperator :: Op -> Bool
 isArithmeticOperator Add = True
 isArithmeticOperator Sub = True
@@ -238,7 +245,13 @@ isArithmeticOperator Mult = True
 isArithmeticOperator Div = True
 isArithmeticOperator _ = False
 
-getApps :: a
-getApps = undefined
-undefinedFnsInMain :: a
-undefinedFnsInMain = undefined
+-- devuelve la lista de nombres de las Aplicaciones presentes en la Expresion
+getApps :: Expr -> [Name]
+getApps (Var _) = []
+getApps (IntLit _) = []
+getApps (BoolLit _) = []
+getApps (Infix _ e1 e2) = getApps e1 ++ getApps e2
+getApps (If e1 e2 e3) = getApps e1 ++ getApps e2 ++ getApps e3
+getApps (Let _ e1 e2) = getApps e1 ++ getApps e2
+getApps (App name es) = name : concatMap getApps es
+
