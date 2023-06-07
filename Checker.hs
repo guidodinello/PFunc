@@ -9,6 +9,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Avoid lambda using `infix`" #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Checker where
 
@@ -65,21 +66,26 @@ instance Show Error where
 -- recibe el AST
 -- devuelve Ok o, si hubo errores de sintaxis una lista de Error. ej. [Duplicated, Undefined, etc]
 checkProgram :: Program -> Checked
-checkProgram (Program defs main)
+checkProgram prg@(Program defs main)
     | null errs =  Ok
     | otherwise =  Wrong errs
     where
         -- nombre de funcion o parametro de funcion duplicado
         duplicatesErrList = notUniqueFns defs ++ concatMap notUniqueVars defs
 
+       -- cantparam diferente de cantparam en firma
+        argNumParamsErrList
+            | null duplicatesErrList = wrongNumParamsDef defs
+            | otherwise = []
+
         -- nombre de funcion o parametro de funcion no definido
         fnsUsedInMain = getApps main
         undefinedErrList = concatMap undefinedVars defs ++ undefinedFns defs ++ undefinedFnsInMain main
-        -- cantparam diferente de cantparam en firma
 
-        argNumParamsErrList = wrongNumParamsDef defs ++ wrongNumParamsApp main defs
         -- tipo de parametro diferente de tipo de parametro en firma
-        expectedErrList = expectedErrs
+        expectedErrList 
+            | null duplicatesErrList && null argNumParamsErrList && null undefinedErrList = expectedErrs prg
+            | otherwise = []
 
         -- se puede cambiar el orden en que se muestran los errores de forma facil
         errs = duplicatesErrList ++ undefinedErrList ++ argNumParamsErrList ++ expectedErrList
@@ -137,28 +143,102 @@ wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
           cantSig = length sigArg
           cantDef = length defArg
 
--- devuelve la lista de errores de cantidad incorrecta de argumentos en el main
-wrongNumParamsApp :: Expr -> Defs -> [Error]
-wrongNumParamsApp (Infix _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs 
-wrongNumParamsApp (If e1 e2 e3) defs = concatMap (\e -> wrongNumParamsApp e defs) [e1,e2,e3]
-wrongNumParamsApp (Let _ e1 e2) defs = wrongNumParamsApp e1 defs ++ wrongNumParamsApp e2 defs  
-wrongNumParamsApp (App n args) defs 
-    | cantSig /= cantApp = (ArgNumApp n cantSig cantApp):errors
-    | otherwise = errors
-    where   errors = concatMap (\e -> wrongNumParamsApp e defs) args
-            cantSig = getDefArgCount defs n
-            cantApp = length args
-wrongNumParamsApp _ _= []
-
 -- devuelve la cantidad de argumentos en la signatura para la funcion con nombre n
 getDefArgCount :: Defs -> Name -> Int
 getDefArgCount [] _ = 0
-getDefArgCount ((FunDef (name, Sig sigArg _) _ _):xs) n 
+getDefArgCount ((FunDef (name, Sig sigArg _) _ _):xs) n
     | n == name = length sigArg
     | otherwise = getDefArgCount xs n
 
+-- devuelve los errores de tipos esperados y de cant de parametros en el programa
+expectedErrs ::  Program -> [Error]
+expectedErrs (Program defs main) = errsDef ++ errsMain
+    where   errsDef = expectedErrsDefs defs defs
+            (_,errsMain) = expectedErrsExpr main defs []
+
+-- devuelve los errores de tipos esperados en las definiciones
+expectedErrsDefs :: Defs -> Defs -> [Error]
+expectedErrsDefs [] _ = []
+expectedErrsDefs ((FunDef (name, Sig argsTypes ret) argsName expr):xs) defs
+    | ret /= exprType = errors ++ errs ++ [Expected ret exprType]
+    | otherwise = errors ++ errs
+    where   env = zip argsName argsTypes
+            (exprType, errs) = expectedErrsExpr expr defs env
+            errors = expectedErrsDefs xs defs
+
+-- devuelve los errores de tipos esperados para las expresiones
+expectedErrsExpr :: Expr -> Defs -> Env -> (Type, [Error])
+-- variable -> busco en el ambiente
+expectedErrsExpr (Var _) _ [] = (TyInt,[]) -- no deberia pasar -> antes es undefined
+expectedErrsExpr v@(Var name) defs ((n,t):xs)
+    | name == n = (t,[])
+    | otherwise = expectedErrsExpr v defs xs
+-- literal entero
+expectedErrsExpr (IntLit _) _ _ = (TyInt, [])
+-- literal booleano
+expectedErrsExpr (BoolLit _) _ _ = (TyBool, [])
+-- operador
+expectedErrsExpr (Infix op e1 e2) defs env
+    | isArithmetic && t1 /= TyInt = (TyInt, errors ++ [Expected TyInt t1])
+    | isArithmetic && t2 /= TyInt = (TyInt, errors ++ [Expected TyInt t2])
+    | isArithmetic = (TyInt, errors)
+    | t1 /= t2 = (TyBool, errors ++ [Expected t1 t2])
+    | otherwise = (TyBool, errors)
+    where   (t1,errs1) = expectedErrsExpr e1 defs env
+            (t2,errs2) = expectedErrsExpr e2 defs env
+            errors = errs1 ++ errs2
+            isArithmetic = isArithmeticOperator op
+-- condicional
+expectedErrsExpr (If e1 e2 e3) defs env = (t2, errs1 ++ errsCond ++ errs2 ++ errs3 ++ errsRes)
+    where   (t1,errs1) = expectedErrsExpr e1 defs env
+            (t2,errs2) = expectedErrsExpr e2 defs env
+            (t3,errs3) = expectedErrsExpr e3 defs env
+            errsCond
+                | t1 /= TyBool = [Expected TyBool t1]
+                | otherwise = []
+            errsRes
+                | t2 /= t3 = [Expected t2 t3]
+                | otherwise = []
+-- let
+expectedErrsExpr (Let var@(_,t) e1 e2) defs env = (t2, errs1 ++ errsLet ++ errs2)
+    where   (t1,errs1) = expectedErrsExpr e1 defs env
+            (t2,errs2) = expectedErrsExpr e2 defs (var:env)
+            errsLet
+                | t /= t1 = [Expected t t1]
+                | otherwise = []
+-- funcion
+expectedErrsExpr (App n args) defs env = (t, errsParams ++ errsArgs)
+    where   (Sig argTypes t) = getFnSig defs n
+            cantSig = length argTypes
+            cantApp = length args
+            errsParams
+                | cantSig /= cantApp = [ArgNumApp n cantSig cantApp]
+                | otherwise = []
+            argActual = map (\e -> expectedErrsExpr e defs env) args
+            errsArgs = concat $ zipWith getAppArgErrors argTypes argActual
+
+-- dada un tipo esperado y el resultado de evaluar expectedErrsExpr retorna la lista de errores, incluyendo si no coincide el error de tipo esperado para la expresion evaluada
+getAppArgErrors :: Type -> (Type, [Error]) -> [Error]
+getAppArgErrors exp (t,err)
+    | exp /= t = err ++ [Expected exp t]
+    | otherwise = err
+
+-- retorna la signatura para la defincion con nombre name                
+getFnSig :: Defs -> Name -> Sig
+getFnSig [FunDef (name, sig) _ _] n = sig --- por defecto retorno la ultima, sino fuera deberia estar en undefined
+getFnSig ((FunDef (name, sig) _ _):xs) n
+    | n == name = sig
+    | otherwise = getFnSig xs n
 
 
+isArithmeticOperator :: Op -> Bool
+isArithmeticOperator Add = True
+isArithmeticOperator Sub = True
+isArithmeticOperator Mult = True
+isArithmeticOperator Div = True
+isArithmeticOperator _ = False
+
+getApps :: a
 getApps = undefined
+undefinedFnsInMain :: a
 undefinedFnsInMain = undefined
-expectedErrs = undefined
