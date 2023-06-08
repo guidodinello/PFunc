@@ -20,12 +20,7 @@ import Syntax
 
 -- TODO: eliminar import Debug
 import Debug.Trace ( trace )
-import qualified Data.Set as Set
 import Data.List -- operador diferencia \\
-
-
-import Data.List
-import Data.Maybe
 
 -- CHECKER
 
@@ -108,37 +103,37 @@ notUniqueVars (FunDef _ varNames _) = map Duplicated $ repeatedElemsInList varNa
 -- ejemplo: [1,2,3,4,5,1,2,2] -> [1,2,2]
 -- se usa para chequear 1. si hay funciones con el mismo nombre 2. en una funcion, parametros con el mismo nombre
 repeatedElemsInList :: Eq a => [a] -> [a]
-repeatedElemsInList [] = []
-repeatedElemsInList (x:xs) = if x `elem` xs then x : repeatedElemsInList xs else repeatedElemsInList xs
+repeatedElemsInList = go []
+    where
+        go _ [] = []
+        go seen (x:xs)
+            -- si ya aparecio, lo agrego al resultado y sigo
+            | x `elem` seen = x : go seen xs
+            -- si no aparecio, lo agrego a los vistos y sigo
+            | otherwise = go (x:seen) xs
 
 -- devuelve la lista de errores de tipo no declarado
 undefinedErrors :: Program -> [Error]
-undefinedErrors (Program defs main) = concatMap undefinedVars defs ++ undefinedFnsInEachFn ++ undefinedFnsInMain
-    where   -- nombre de funcion o parametro de funcion no definido
-            definedFns = [name | (FunDef (name, _) _ _) <- defs]
-            -- obtiene las f_i usadas dentro de f_j pero f_i no esta definida
-            usedFns = concat [getApps body | (FunDef _ _ body) <- defs]
-            undefinedFnsInEachFn = map Undefined $ usedFns \\ definedFns
-            -- obtiene las f_i usadas dentro del main pero f_i no esta definida
-            undefinedFnsInMain = map Undefined $ (getApps main) \\ definedFns
+undefinedErrors (Program defs main) = map Undefined undefinedInFns ++ map Undefined undefinedInMain
+    where   
+        -- nombre de funcion o parametro de funcion no definido
+        definedFns = [name | (FunDef (name, _) _ _) <- defs]
 
--- devuelve la lista de errores de variable usada dentro de funcion pero no es argumento
--- capaz hay que cambiarla, que pasa por ejemplo con un let x
--- f(a,b) = a+b ... let x  , esto devolveria x como undefined
-undefinedVars :: FunDef -> [Error]
-undefinedVars (FunDef _ argNames expr) = map Undefined undefinedNames
-    where
-        undefinedNames = [name | name <- getVars expr, name `notElem` argNames]
+        -- para cada funcion, el scope es definedFns y sus params (se incluye a ella misma en el scope permitiendo recursividad)
+        -- es correcto asumiendo que en este punto no hay funciones duplicadas, sino se hubiera abortado el proceso antes
+        undefinedInFns = concatMap (\(FunDef _ params expr) -> undefVarInExpr (definedFns, params) expr) defs
+        -- para main, el scope son las funciones definidas
+        undefinedInMain = undefVarInExpr (definedFns, []) main
 
--- devuelve la lista de Identificadores de variable presentes en la Expresion
-getVars :: Expr -> [String]
-getVars (Var name) = [name]
-getVars (IntLit _) = []
-getVars (BoolLit _) = []
-getVars (Infix _ e1 e2) = getVars e1 ++ getVars e2
-getVars (If e1 e2 e3) = getVars e1 ++ getVars e2 ++ getVars e3
-getVars (Let _ e1 e2) = getVars e1 ++ getVars e2
-getVars (App _ es) = concatMap getVars es
+-- devuelve la lista de identificadores no definidos en la expresion para el scope dado
+undefVarInExpr :: ([Name],[Name]) -> Expr -> [Name]
+undefVarInExpr (_, varsInScope) (Var ident) = [ident | ident `notElem` varsInScope]
+undefVarInExpr _ (IntLit _) = []
+undefVarInExpr _ (BoolLit _) = []
+undefVarInExpr scope (Infix _ e1 e2) = undefVarInExpr scope e1 ++ undefVarInExpr scope e2
+undefVarInExpr scope (If e1 e2 e3) = undefVarInExpr scope e1 ++ undefVarInExpr scope e2 ++ undefVarInExpr scope e3
+undefVarInExpr scope@(fnsInScope, varsInScope) (Let (ident, _) e1 e2) = undefVarInExpr scope e1 ++ undefVarInExpr (fnsInScope, ident:varsInScope) e2
+undefVarInExpr scope@(fnsInScope, _) (App ident exprs) = [ident | ident `notElem` fnsInScope] ++ concatMap (undefVarInExpr scope) exprs
 
 -- devuelve la lista de errores de cantidad incorrecta de argumentos en las definiciones
 wrongNumParamsDef :: Defs -> [Error]
