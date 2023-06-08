@@ -139,7 +139,7 @@ undefVarInExpr scope@(fnsInScope, _) (App ident exprs) = [ident | ident `notElem
 wrongNumParamsDef :: Defs -> [Error]
 wrongNumParamsDef [] = []
 wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
-    | cantSig /= cantDef = (ArgNumDef name cantDef cantSig):errors
+    | cantSig /= cantDef = (ArgNumDef name cantSig cantDef):errors
     | otherwise = errors
     where errors = wrongNumParamsDef xs
           cantSig = length sigArg
