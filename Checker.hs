@@ -76,12 +76,12 @@ checkProgram prg@(Program defs main)
 
         -- undefined error
         undefinedErrList 
-            | null duplicatesErrList && null argNumParamsErrList = undefinedErrors prg
+            | all null [duplicatesErrList, argNumParamsErrList] = undefinedErrors prg
             | otherwise = []
 
         -- tipo de parametro diferente de tipo de parametro en firma
         expectedErrList 
-            | null duplicatesErrList && null argNumParamsErrList && null undefinedErrList = expectedErrs prg
+            | all null [duplicatesErrList, argNumParamsErrList, undefinedErrList] = expectedErrs prg
             | otherwise = []
 
         -- se puede cambiar el orden en que se muestran los errores de forma facil
@@ -184,7 +184,7 @@ expectedErrsExpr (Infix op e1 e2) defs env
     | isArithmetic && t1 /= TyInt = (TyInt, errors ++ [Expected TyInt t1])
     | isArithmetic && t2 /= TyInt = (TyInt, errors ++ [Expected TyInt t2])
     | isArithmetic = (TyInt, errors)
-    | t1 /= t2 = (TyBool, errors ++ [Expected t1 t2])
+    | t1 /= t2 = (TyBool, Expected t1 t2 : errors)
     | otherwise = (TyBool, errors)
     where   (t1,errs1) = expectedErrsExpr e1 defs env
             (t2,errs2) = expectedErrsExpr e2 defs env
@@ -240,13 +240,5 @@ isArithmeticOperator Mult = True
 isArithmeticOperator Div = True
 isArithmeticOperator _ = False
 
--- devuelve la lista de nombres de las Aplicaciones presentes en la Expresion
-getApps :: Expr -> [Name]
-getApps (Var _) = []
-getApps (IntLit _) = []
-getApps (BoolLit _) = []
-getApps (Infix _ e1 e2) = getApps e1 ++ getApps e2
-getApps (If e1 e2 e3) = getApps e1 ++ getApps e2 ++ getApps e3
-getApps (Let _ e1 e2) = getApps e1 ++ getApps e2
-getApps (App name es) = name : concatMap getApps es
 
+-- un comentario
