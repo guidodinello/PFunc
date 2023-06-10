@@ -56,7 +56,7 @@ main = do
                     when (optflag && printflag) (print prg')
                     case compiler prg' of
                         -- escribir el .c
-                        Right cprg -> writeFile ("localtests/" ++ filename ++ suff ++ ".c") cprg
+                        Right cprg -> writeFile (filename ++ suff ++ ".c") cprg
                         -- escribir los errores de sintaxis del programa
                         Left errs -> putStr errs
         -- mostrar errores en el llamado por cli

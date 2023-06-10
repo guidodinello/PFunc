@@ -1,43 +1,52 @@
-TEST_IN_DIR=localtests/tmp
-TEST_OUT_DIR=localtests
+$(V).SILENT:
+
+TEST_DIR=tests_outputs
 
 Compiler: Compiler.hs Syntax.hs Checker.hs Generator.hs
 	ghc --make Compiler
 
 clean:
 	rm -f *.hi *.o Compiler
+	rm -rf ${TEST_DIR}
 
 setup-test-dir:
-	mkdir -p ${TEST_OUT_DIR}
-	rm -rf ./${TEST_OUT_DIR}/*
-	mkdir -p ${TEST_IN_DIR}
-	cp -r tests/* ${TEST_IN_DIR}
+	mkdir -p ${TEST_DIR}
+	rm -rf ./${TEST_DIR}/*
+	cp -r tests/* ${TEST_DIR}
 
-tests: setup-test-dir
-	@$(MAKE) run-test CANT=9 TEST_TYPE=fun TEST_EXT=c TEST_IN_SUFIX=''
-	@$(MAKE) run-test CANT=9 TEST_TYPE=opt TEST_EXT=c TEST_IN_SUFIX=''
-	@$(MAKE) run-test CANT=4 TEST_TYPE=err TEST_EXT=err TEST_IN_SUFIX=err
+tests: setup-test-dir Compiler
+	@$(MAKE) test-err
+	@$(MAKE) test-fun
+	@$(MAKE) test-opt
 
 test-fun: setup-test-dir 
-	@$(MAKE) run-test CANT=9 TEST_TYPE=fun TEST_EXT=c TEST_IN_SUFIX=''
+	@$(MAKE) run-test CANT=9 TEST_TYPE=fun OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX=''
 
 test-opt: setup-test-dir
-	@$(MAKE) run-test CANT=9 TEST_TYPE=opt TEST_EXT=c TEST_IN_SUFIX=''
+	@$(MAKE) run-test CANT=9 TEST_TYPE=opt OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX='_opt'
 
 test-err: setup-test-dir
-	@$(MAKE) run-test CANT=4 TEST_TYPE=err TEST_EXT=err TEST_IN_SUFIX=err
+	@$(MAKE) run-test CANT=4 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
 
 run-test:
 	@$(MAKE) setup-test-dir
+	CORRECT=0; \
+	SKIPPED=0; \
 	for i in $$(seq 1 $(CANT)); do \
-		printf "Running $${TEST_TYPE} test $$i... "; \
-		IN_FILE=${TEST_IN_DIR}/ejemplo$${i}$${TEST_IN_SUFIX}; \
-		OUT_FILE=${TEST_OUT_DIR}/ejemplo$${i}$${TEST_TYPE}; \
-		EXPECTED_FILE=${TEST_IN_DIR}/ejemplo$${i}$${TEST_TYPE}.$${TEST_EXT}; \
-		runhaskell Compiler.hs "$${IN_FILE}" > "$${OUT_FILE}"; \
+		FILE=${TEST_DIR}/ejemplo$${i}${IN_SUFFIX}; \
+		OUT_FILE=${TEST_DIR}/ejemplo$${i}${OUT_SUFFIX}.${OUT_EXT}; \
+		EXPECTED_FILE=tests/ejemplo$${i}${OUT_SUFFIX}.${OUT_EXT}; \
+		if [ "${TEST_TYPE}" = "opt" ]; then \
+			FLAG="-o"; \
+		else \
+			FLAG=""; \
+		fi; \
+		printf "Testing Compiler.hs $${FLAG} $${FILE}.fun ... "; \
+		runhaskell Compiler.hs $${FLAG} "$${FILE}"; \
 		ERROR_CODE=$$?; \
 		if [ $$ERROR_CODE -ne 0 ]; then \
 			echo "NO SE GENERO EL ARCHIVO DE SALIDA ✖ (skipped)"; \
+			SKIPPED=$$((SKIPPED + 1)); \
 			continue; \
 		fi; \
 		DIFF=$$(diff -u "$${OUT_FILE}" "$${EXPECTED_FILE}"); \
@@ -46,7 +55,13 @@ run-test:
 			echo "$${DIFF}"; \
 		else \
 			echo "✔"; \
+			CORRECT=$$((CORRECT + 1)); \
 		fi; \
-	done
+	done; \
+	INCORRECT=$$((CANT - CORRECT - SKIPPED)); \
+	echo "Tests passed: $${CORRECT}/$${CANT}"; \
+	echo "Tests failed: $${INCORRECT}/$${CANT}"; \
+	echo "Tests skipped: $${SKIPPED}/$${CANT}"; \
+	exit $$INCORRECT
 
 .PHONY: Compiler clean tests test-fun test-opt test-err setup-test-dir run-test
