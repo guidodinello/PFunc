@@ -239,6 +239,3 @@ isArithmeticOperator Sub = True
 isArithmeticOperator Mult = True
 isArithmeticOperator Div = True
 isArithmeticOperator _ = False
-
-
--- un comentario
