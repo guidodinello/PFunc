@@ -24,45 +24,23 @@ jobs:
       - name: Make Badges
         run: |
           echo "## Tests" > README.md
-          test_type="err"
-          percentage=$(grep -Po "(?<=PERC_${test_type}_PASSED=)(100|[0-9]{1,2})" 'tests_outputs/.log')
-          if (( $(echo "$percentage < 50" | bc -l) )); then
-            color="red"
-          elif (( $(echo "$percentage < 80" | bc -l) )); then
-            color="yellow"
-          else
-            color="brightgreen"
-          fi
-          label="Test_${test_type}"
-          BADGE_URL="https://img.shields.io/badge/${label}-${percentage}%25-${color}?style=plastic&logo=github"
-          echo "![Test-${test_type}](${BADGE_URL})" >> README.md
+          test_types=("err" "fun" "opt")
 
-          test_type="fun"
-          percentage=$(grep -Po "(?<=PERC_${test_type}_PASSED=)(100|[0-9]{1,2})" 'tests_outputs/.log')
-          if (( $(echo "$percentage < 50" | bc -l) )); then
-            color="red"
-          elif (( $(echo "$percentage < 80" | bc -l) )); then
-            color="yellow"
-          else
-            color="brightgreen"
-          fi
-          label="Test_${test_type}"
-          BADGE_URL="https://img.shields.io/badge/${label}-${percentage}%25-${color}?style=plastic&logo=github"
-          echo "![Test-${test_type}](${BADGE_URL})" >> README.md
+          for test_type in "${test_types[@]}"; do
+            percentage=$(grep -Po "(?<=PERC_${test_type}_PASSED=)(100|[0-9]{1,2})" 'tests_outputs/.log')
 
-          test_type="opt"
-          percentage=$(grep -Po "(?<=PERC_${test_type}_PASSED=)(100|[0-9]{1,2})" 'tests_outputs/.log')
-          if (( $(echo "$percentage < 50" | bc -l) )); then
-            color="red"
-          elif (( $(echo "$percentage < 80" | bc -l) )); then
-            color="yellow"
-          else
-            color="brightgreen"
-          fi
-          label="Test_${test_type}"
-          BADGE_URL="https://img.shields.io/badge/${label}-${percentage}%25-${color}?style=plastic&logo=github"
-          echo "![Test-${test_type}](${BADGE_URL})" >> README.md
+            if (( $(echo "$percentage < 50" | bc -l) )); then
+              color="red"
+            elif (( $(echo "$percentage < 80" | bc -l) )); then
+              color="yellow"
+            else
+              color="brightgreen"
+            fi
 
+            label="Test_${test_type}"
+            badge_url="https://img.shields.io/badge/${label}-${percentage}%25-${color}?style=plastic&logo=github"
+            echo "![${label}](${badge_url})" >> README.md
+          done
       - name: Commit new README
         uses: EndBug/add-and-commit@v9
         with:
@@ -70,5 +48,4 @@ jobs:
           author_name: TestActionBot
           committer_name: CommiterName
           committer_email: no_email@no_reply.com
-          fetch: false
           message: 'Test Badges updated by Action Bot'
