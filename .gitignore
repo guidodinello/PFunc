@@ -1,7 +1,8 @@
 *.o
 *.hi
+*.dyn_o
+*.dyn_hi
 *.ipynb
-.github/*
 .vscode/*
 Compiler
 Compiler.exe
