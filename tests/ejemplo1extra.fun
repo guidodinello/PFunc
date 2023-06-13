@@ -1,0 +1,1 @@
+main = if True then let x :: Int = 2 in x + 1 else 5

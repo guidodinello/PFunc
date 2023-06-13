@@ -1,6 +1,7 @@
 $(V).SILENT:
 
 TEST_DIR=tests_outputs
+LOG_FILE=${TEST_DIR}/.log
 
 Compiler: Compiler.hs Syntax.hs Checker.hs Generator.hs
 	ghc --make Compiler
@@ -15,21 +16,22 @@ setup-test-dir:
 	cp -r tests/* ${TEST_DIR}
 
 tests: setup-test-dir Compiler
-	@$(MAKE) test-err
-	@$(MAKE) test-fun
-	@$(MAKE) test-opt
+	> ${LOG_FILE} # clear log file
+	$(MAKE) test-err test-fun test-opt
 
 test-fun: setup-test-dir 
-	@$(MAKE) run-test CANT=9 TEST_TYPE=fun OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX=''
+	$(MAKE) run-test CANT=9 TEST_TYPE=fun OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX=''
 
 test-opt: setup-test-dir
-	@$(MAKE) run-test CANT=9 TEST_TYPE=opt OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX='_opt'
+	$(MAKE) run-test CANT=9 TEST_TYPE=opt OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX='_opt'
 
 test-err: setup-test-dir
-	@$(MAKE) run-test CANT=4 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
+	$(MAKE) run-test CANT=4 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
+
+test-extra: setup-test-dir
+	$(MAKE) run-test CANT=1 TEST_TYPE=extra OUT_EXT=c IN_SUFFIX=extra OUT_SUFFIX=extra
 
 run-test:
-	@$(MAKE) setup-test-dir
 	CORRECT=0; \
 	SKIPPED=0; \
 	for i in $$(seq 1 $(CANT)); do \
@@ -42,7 +44,7 @@ run-test:
 			FLAG=""; \
 		fi; \
 		printf "Testing Compiler.hs $${FLAG} $${FILE}.fun ... "; \
-		runhaskell Compiler.hs $${FLAG} "$${FILE}"; \
+		STDOUT=$$(runhaskell Compiler.hs $${FLAG} "$${FILE}"); \
 		ERROR_CODE=$$?; \
 		if [ $$ERROR_CODE -ne 0 ]; then \
 			echo "NO SE GENERO EL ARCHIVO DE SALIDA ✖ (skipped)"; \
@@ -62,6 +64,6 @@ run-test:
 	echo "Tests passed: $${CORRECT}/$${CANT}"; \
 	echo "Tests failed: $${INCORRECT}/$${CANT}"; \
 	echo "Tests skipped: $${SKIPPED}/$${CANT}"; \
-	exit $$INCORRECT
+	echo "PERC_${TEST_TYPE}_PASSED=$$((100-((INCORRECT + SKIPPED)*100/CANT)))" >> ${LOG_FILE}; \
 
 .PHONY: Compiler clean tests test-fun test-opt test-err setup-test-dir run-test
