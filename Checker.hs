@@ -6,37 +6,22 @@
 -- que representa un programa, retorna Ok en caso de no encontrar errores,
 -- o la lista de errores encontrados en otro caso.
 ----------------------------------------------------------------------------
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Redundant bracket" #-}
-{-# HLINT ignore "Avoid lambda using `infix`" #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Checker where
 
 import Syntax
 
--- se pueden agregar mas importaciones
--- en caso de ser necesario
-
--- TODO: eliminar import Debug
-import Debug.Trace ( trace )
 import Data.List -- operador diferencia \\
 
 -- CHECKER
 
--- TODO: eliminar los comentarios 'no modificar'
--- no modificar
 data Checked = Ok | Wrong [Error]
-
--- no modificar
 data Error
     = Duplicated Name
     | Undefined Name
     | ArgNumDef Name Int Int
     | ArgNumApp Name Int Int
     | Expected Type Type
-
--- no modificar
 instance Show Error where
     show (Duplicated n) = "Duplicated declaration: " ++ n
     show (Undefined n) = "Undefined: " ++ n
@@ -86,9 +71,6 @@ checkProgram prg@(Program defs main)
 
         -- se puede cambiar el orden en que se muestran los errores de forma facil
         errs = duplicatesErrList ++ undefinedErrList ++ argNumParamsErrList ++ expectedErrList
-
--- debugging
--- checkProgram (Program defs main) = trace ("Caso No controlado\n defs content: " ++ show defs ++ "\nexpressions:" ++ show main) Wrong []
 
 -- Check the uniqueness of function names (Name, _) for TypedFun in FunDef
 notUniqueFns :: [FunDef] -> [Error]

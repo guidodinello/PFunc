@@ -11,9 +11,6 @@ module Generator where
 
 import Syntax
 
--- se pueden agregar mas importaciones
--- en caso de ser necesario 
-
 import Data.List ( intercalate )
 
 -- CODE GENERATOR
