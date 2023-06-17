@@ -28,8 +28,16 @@ test-opt: setup-test-dir
 test-err: setup-test-dir
 	$(MAKE) run-test CANT=4 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
 
-test-extra: setup-test-dir
+tests-extra: setup-test-dir Compiler
+	> ${LOG_FILE} # clear log file
+	$(MAKE) test-extra-err test-extra-fun test-extra-opt
+
+test-extra-fun: setup-test-dir
 	$(MAKE) run-test CANT=1 TEST_TYPE=extra OUT_EXT=c IN_SUFFIX=extra OUT_SUFFIX=extra
+test-extra-opt: setup-test-dir
+	$(MAKE) run-test CANT=0 TEST_TYPE=opt OUT_EXT=c IN_SUFFIX=extra OUT_SUFFIX='extra_opt'
+test-extra-err: setup-test-dir
+	$(MAKE) run-test CANT=1 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=extra OUT_SUFFIX='extra_err'
 
 run-test:
 	CORRECT=0; \
