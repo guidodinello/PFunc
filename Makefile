@@ -26,7 +26,7 @@ test-opt: setup-test-dir
 	$(MAKE) run-test CANT=9 TEST_TYPE=opt OUT_EXT=c IN_SUFFIX='' OUT_SUFFIX='_opt'
 
 test-err: setup-test-dir
-	$(MAKE) run-test CANT=4 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
+	$(MAKE) run-test CANT=7 TEST_TYPE=err OUT_EXT=err IN_SUFFIX=err OUT_SUFFIX=err
 
 tests-extra: setup-test-dir Compiler
 	> ${LOG_FILE} # clear log file
