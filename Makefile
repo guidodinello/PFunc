@@ -59,6 +59,9 @@ run-test:
 			SKIPPED=$$((SKIPPED + 1)); \
 			continue; \
 		fi; \
+		if [ -n "$${STDOUT}" ]; then \
+			echo "$${STDOUT}" > "$${OUT_FILE}"; \
+		fi; \
 		DIFF=$$(diff -u "$${OUT_FILE}" "$${EXPECTED_FILE}"); \
 		if [ -n "$${DIFF}" ]; then \
 			echo "✖"; \
