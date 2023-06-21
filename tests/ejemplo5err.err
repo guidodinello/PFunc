@@ -1,6 +1,5 @@
-Expected: Int Actual: Bool -- el if es de tipo Bool y foo retorna Int
-Expected: Bool Actual: Int -- el else (if z...) es de tipo Int y el then de tipo Bool 
-Expected: Int Actual: Bool -- True en 3==True
-Expected: Int Actual: Bool -- x==y 
+Expected: Int Actual: Bool
+Expected: Bool Actual: Int
+Expected: Int Actual: Bool
+Expected: Int Actual: Bool
 The number of arguments in the application of: foo doesn't match the signature (2 vs 3)
-
