@@ -121,7 +121,7 @@ undefVarInExpr scope@(fnsInScope, _) (App ident exprs) = [ident | ident `notElem
 wrongNumParamsDef :: Defs -> [Error]
 wrongNumParamsDef [] = []
 wrongNumParamsDef ((FunDef (name, Sig sigArg _) defArg _):xs)
-    | cantSig /= cantDef = (ArgNumDef name cantSig cantDef):errors
+    | cantSig /= cantDef = ArgNumDef name cantSig cantDef : errors
     | otherwise = errors
     where errors = wrongNumParamsDef xs
           cantSig = length sigArg
@@ -144,7 +144,7 @@ expectedErrs (Program defs main) = errsDef ++ errsMain
 expectedErrsDefs :: Defs -> Defs -> [Error]
 expectedErrsDefs [] _ = []
 expectedErrsDefs ((FunDef (name, Sig argsTypes ret) argsName expr):xs) defs
-    | ret /= exprType = errors ++ errs ++ [Expected ret exprType]
+    | ret /= exprType = Expected ret exprType : (errors ++ errs)
     | otherwise = errors ++ errs
     where   env = zip argsName argsTypes
             (exprType, errs) = expectedErrsExpr expr defs env
@@ -162,9 +162,9 @@ expectedErrsExpr (IntLit _) _ _ = (TyInt, [])
 -- literal booleano
 expectedErrsExpr (BoolLit _) _ _ = (TyBool, [])
 -- operador
-expectedErrsExpr (Infix op e1 e2) defs env
-    | isArithmetic && t1 /= TyInt = (TyInt, errors ++ [Expected TyInt t1])
-    | isArithmetic && t2 /= TyInt = (TyInt, errors ++ [Expected TyInt t2])
+expectedErrsExpr e@(Infix op e1 e2) defs env
+    | isArithmetic && t1 /= TyInt = (TyInt, Expected TyInt t1 : errors)
+    | isArithmetic && t2 /= TyInt = (TyInt, Expected TyInt t2 : errors)
     | isArithmetic = (TyInt, errors)
     | t1 /= t2 = (TyBool, Expected t1 t2 : errors)
     | otherwise = (TyBool, errors)
@@ -173,7 +173,7 @@ expectedErrsExpr (Infix op e1 e2) defs env
             errors = errs1 ++ errs2
             isArithmetic = isArithmeticOperator op
 -- condicional
-expectedErrsExpr (If e1 e2 e3) defs env = (t2, errs1 ++ errsCond ++ errs2 ++ errs3 ++ errsRes)
+expectedErrsExpr e@(If e1 e2 e3) defs env = (t2, errsCond ++ errsRes ++ errs1 ++ errs2 ++ errs3)
     where   (t1,errs1) = expectedErrsExpr e1 defs env
             (t2,errs2) = expectedErrsExpr e2 defs env
             (t3,errs3) = expectedErrsExpr e3 defs env
@@ -184,18 +184,18 @@ expectedErrsExpr (If e1 e2 e3) defs env = (t2, errs1 ++ errsCond ++ errs2 ++ err
                 | t2 /= t3 = [Expected t2 t3]
                 | otherwise = []
 -- let
-expectedErrsExpr (Let var@(_,t) e1 e2) defs env = (t2, errs1 ++ errsLet ++ errs2)
+expectedErrsExpr e@(Let var@(_,t) e1 e2) defs env = (t, errsLet ++ errs1 ++ errs2)
     where   (t1,errs1) = expectedErrsExpr e1 defs env
             (t2,errs2) = expectedErrsExpr e2 defs (var:env)
             errsLet
                 | t /= t1 = [Expected t t1]
                 | otherwise = []
 -- funcion
-expectedErrsExpr (App n args) defs env = (t, errsParams ++ errsArgs)
+expectedErrsExpr e@(App n args) defs env = (t, errsNmbrParams ++ errsArgs)
     where   (Sig argTypes t) = getFnSig defs n
             cantSig = length argTypes
             cantApp = length args
-            errsParams
+            errsNmbrParams
                 | cantSig /= cantApp = [ArgNumApp n cantSig cantApp]
                 | otherwise = []
             argActual = map (\e -> expectedErrsExpr e defs env) args
