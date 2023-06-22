@@ -1,0 +1,7 @@
+foo :: (Int,Int) -> Int
+foo(x,y) = let x = y in x + let y = x + y in y + 1
+
+bar :: (Int) -> Int
+bar(x) = let x = x + 1 in let x = x + 1 in x
+
+main = foo(2,4) + bar(2)
